@@ -14,17 +14,17 @@ import * as DocumentPicker from 'expo-document-picker';
 
 let FTPClient;
 try {
-	FTPClient = require('react-native-ftp-client');
+	FTPClient = require('react-native-ftp-client').default;
 } catch (e) {
 	console.warn('FTP Client not available:', e.message);
 }
 
 export default function App() {
 	const [selectedFile, setSelectedFile] = useState(null);
-	const [host, setHost] = useState('');
-	const [port, setPort] = useState('21');
-	const [user, setUser] = useState('');
-	const [password, setPassword] = useState('');
+	const [host, setHost] = useState('192.168.10.140');
+	const [port, setPort] = useState('2121');
+	const [user, setUser] = useState('admin');
+	const [password, setPassword] = useState('admin');
 	const [remotePath, setRemotePath] = useState('');
 	const [uploading, setUploading] = useState(false);
 
@@ -32,7 +32,7 @@ export default function App() {
 		try {
 			const result = await DocumentPicker.getDocumentAsync({
 				type: '*/*', // Allow all file types
-				copyToCacheDirectory: false,
+				copyToCacheDirectory: true, // Copy to cache for FTP access
 			});
 
 			if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -63,40 +63,49 @@ export default function App() {
 		try {
 			setUploading(true);
 
-			// Initialize FTP client
-			const ftpClient = new FTPClient();
-
-			// Setup FTP connection
-			await ftpClient.setup({
+			// Setup FTP connection (library connects automatically during upload)
+			console.log('Setting up FTP with:', { host, port, user, password });
+			await FTPClient.setup({
 				ip_address: host,
-				port: parseInt(port) || 2121,
+				port: parseInt(port),
 				username: user,
-				password: password,
+				password,
 			});
+			console.log('FTP configured');
 
 			// Convert file URI to a local path
 			let localPath = selectedFile.uri;
+			console.log('Original URI:', localPath);
 
 			// Handle different URI schemes
 			if (localPath.startsWith('file://')) {
 				localPath = localPath.replace('file://', '');
-			} else if (localPath.startsWith('content://')) {
-				// For Android content URIs, we'll need to handle this differently
-				// The library should handle this, but if not, additional conversion may be needed
 			}
 
 			// Decode URI components (handle spaces and special characters)
 			localPath = decodeURIComponent(localPath);
+
+			console.log('Final local path for Java FileInputStream:', localPath);
 
 			// Determine remote file path
 			const fileName = selectedFile.name;
 			const remoteFilePath = remotePath ? `${remotePath}/${fileName}` : fileName;
 
 			// Upload the file
-			await ftpClient.uploadFile(localPath, remoteFilePath);
+			console.log('Uploading to remote path:', remoteFilePath);
+			console.log('Attempting FTP upload with params:', {
+				localPath,
+				remoteFilePath,
+				host,
+				port: parseInt(port) || 21,
+			});
+
+			const uploadResult = await FTPClient.uploadFile(localPath, remoteFilePath);
+			console.log('Upload result:', uploadResult);
 
 			// Disconnect
-			await ftpClient.disconnect();
+			console.log('Upload complete, disconnecting FTP');
+			await FTPClient.disconnect();
 
 			Alert.alert('Success', `File uploaded: ${fileName}`);
 		} catch (err) {
