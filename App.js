@@ -7,9 +7,17 @@ import {
 	Alert,
 	TextInput,
 	ActivityIndicator,
+	Platform,
 } from 'react-native';
 import { useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
+
+let FTPClient;
+try {
+	FTPClient = require('react-native-ftp-client');
+} catch (e) {
+	console.warn('FTP Client not available:', e.message);
+}
 
 export default function App() {
 	const [selectedFile, setSelectedFile] = useState(null);
@@ -40,46 +48,59 @@ export default function App() {
 		}
 	};
 
-	const uploadToProxy = async () => {
+	const uploadViaFTP = async () => {
 		if (!selectedFile) return Alert.alert('No file', 'Please select a file first');
 		if (!host || !user)
 			return Alert.alert('Missing credentials', 'Please provide host and user');
 
+		if (!FTPClient) {
+			return Alert.alert(
+				'FTP Not Available',
+				'This app requires a development build to use FTP. Please build with "npx expo run:android" or "npx expo run:ios"'
+			);
+		}
+
 		try {
 			setUploading(true);
 
-			const uriParts = selectedFile.uri.split('/');
-			const name = selectedFile.name || uriParts[uriParts.length - 1];
+			// Initialize FTP client
+			const ftpClient = new FTPClient();
 
-			const form = new FormData();
-			// For Expo on Android/iOS, we can include the file as { uri, name, type }
-			form.append('file', {
-				uri: selectedFile.uri,
-				name,
-				// generic binary type; you can refine if you know the mime
-				type: 'application/octet-stream',
-			});
-			form.append('host', host);
-			form.append('port', port);
-			form.append('user', user);
-			form.append('password', password);
-			form.append('remotePath', remotePath);
-
-			const resp = await fetch('http://10.0.2.2:4000/upload', {
-				method: 'POST',
-				headers: {
-					Accept: 'application/json',
-					'Content-Type': 'multipart/form-data',
-				},
-				body: form,
+			// Setup FTP connection
+			await ftpClient.setup({
+				ip_address: host,
+				port: parseInt(port) || 2121,
+				username: user,
+				password: password,
 			});
 
-			const data = await resp.json();
-			if (!resp.ok) throw new Error(data.error || 'Upload failed');
+			// Convert file URI to a local path
+			let localPath = selectedFile.uri;
 
-			Alert.alert('Upload', 'File uploaded: ' + (data.filename || 'ok'));
+			// Handle different URI schemes
+			if (localPath.startsWith('file://')) {
+				localPath = localPath.replace('file://', '');
+			} else if (localPath.startsWith('content://')) {
+				// For Android content URIs, we'll need to handle this differently
+				// The library should handle this, but if not, additional conversion may be needed
+			}
+
+			// Decode URI components (handle spaces and special characters)
+			localPath = decodeURIComponent(localPath);
+
+			// Determine remote file path
+			const fileName = selectedFile.name;
+			const remoteFilePath = remotePath ? `${remotePath}/${fileName}` : fileName;
+
+			// Upload the file
+			await ftpClient.uploadFile(localPath, remoteFilePath);
+
+			// Disconnect
+			await ftpClient.disconnect();
+
+			Alert.alert('Success', `File uploaded: ${fileName}`);
 		} catch (err) {
-			console.error('Upload error', err);
+			console.error('Upload error:', err);
 			Alert.alert('Upload failed', err.message || String(err));
 		} finally {
 			setUploading(false);
@@ -143,7 +164,7 @@ export default function App() {
 
 			<TouchableOpacity
 				style={[styles.selectButton, styles.uploadButton]}
-				onPress={uploadToProxy}
+				onPress={uploadViaFTP}
 				disabled={uploading}
 			>
 				{uploading ? (
