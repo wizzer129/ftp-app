@@ -3,9 +3,9 @@
 # dependencies
 node_modules/
 package-lock.json
-ftp-proxy/node_modules/
-ftp-proxy/uploads/
-ftp-proxy/package-lock.json
+upload-server/node_modules/
+upload-server/uploads/*
+upload-server/package-lock.json
 
 # Expo
 .expo/
