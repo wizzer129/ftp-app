@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const http = require('http');
-const WebSocket = require('ws');
 
 const app = express();
 app.use(cors());
@@ -16,7 +15,7 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => cb(null, UPLOAD_DIR),
 	filename: (req, file, cb) => {
-		const safeName = `${Date.now()}-${file.originalname.replace(/[^a-z0-9.\-\_\.]/gi, '_')}`;
+		const safeName = file.originalname.replace(/[^a-z0-9.\-\_\.]/gi, '_');
 		cb(null, safeName);
 	},
 });
@@ -25,28 +24,13 @@ const upload = multer({ storage });
 
 // create HTTP server and WebSocket server so they share the same port
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// map uploadId -> ws
-const sockets = new Map();
 // map uploadId -> progress info for polling
 const progressStore = new Map();
 
-wss.on('connection', (ws, req) => {
-	try {
-		const params = new URL(req.url, `http://${req.headers.host}`);
-		const uploadId = params.searchParams.get('uploadId');
-		if (uploadId) {
-			sockets.set(uploadId, ws);
-			ws.on('close', () => sockets.delete(uploadId));
-		}
-	} catch (err) {
-		// ignore malformed URL
-	}
-});
-
 // Middleware to stream-count bytes and emit progress for a given uploadId
 function progressMiddleware(req, res, next) {
+	console.log('progresMiddleware');
 	const uploadId = req.query.uploadId || req.headers['x-upload-id'];
 	if (!uploadId) return next();
 
@@ -55,17 +39,6 @@ function progressMiddleware(req, res, next) {
 
 	function onData(chunk) {
 		received += chunk.length;
-		const ws = sockets.get(uploadId);
-		if (ws && ws.readyState === WebSocket.OPEN) {
-			ws.send(
-				JSON.stringify({
-					type: 'progress',
-					received,
-					total,
-					percent: total ? Math.round((received / total) * 100) : null,
-				})
-			);
-		}
 		// also persist progress for polling clients
 		progressStore.set(uploadId, {
 			received,
@@ -82,10 +55,8 @@ function progressMiddleware(req, res, next) {
 
 	req.on('data', onData);
 	req.on('end', () => {
-		const ws = sockets.get(uploadId);
-		if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'done' }));
 		// mark complete in store and schedule cleanup
-		progressStore.set(uploadId, { received, total, percent: 100, done: true });
+		// progressStore.set(uploadId, { received, total, percent: 100, done: true });
 		setTimeout(() => progressStore.delete(uploadId), 30 * 1000);
 		cleanup();
 	});
@@ -106,18 +77,6 @@ app.post('/upload', progressMiddleware, upload.single('file'), (req, res) => {
 
 	// If client provided uploadId, send final info over ws as well
 	const uploadId = req.query.uploadId || req.headers['x-upload-id'];
-	const ws = uploadId ? sockets.get(uploadId) : null;
-	if (ws && ws.readyState === WebSocket.OPEN) {
-		ws.send(
-			JSON.stringify({
-				type: 'complete',
-				filename: savedName,
-				originalname: originalName,
-				size,
-				path: `/uploads/${savedName}`,
-			})
-		);
-	}
 
 	// also set final info in progress store for polling clients
 	if (uploadId) {
@@ -132,9 +91,16 @@ app.post('/upload', progressMiddleware, upload.single('file'), (req, res) => {
 		setTimeout(() => progressStore.delete(uploadId), 30 * 1000);
 	}
 
+	console.log({
+		ok: true,
+		filename: originalName,
+		originalname: originalName,
+		size,
+		path: `/uploads/${savedName}`,
+	});
 	res.json({
 		ok: true,
-		filename: savedName,
+		filename: originalName,
 		originalname: originalName,
 		size,
 		path: `/uploads/${savedName}`,

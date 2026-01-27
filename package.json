@@ -1,27 +1,30 @@
 {
-	"name": "ftp-app",
-	"version": "1.0.0",
-	"main": "index.js",
-	"scripts": {
-		"start": "expo start",
-		"android": "expo run:android",
-		"ios": "expo run:ios",
-		"web": "expo start --web",
-		"start-proxy": "node ./ftp-proxy/server.js",
-		"format": "prettier --write \"**/*.{js,jsx,json,md,css,ts,tsx}\""
-	},
-	"dependencies": {
-		"expo": "~54.0.31",
-		"expo-document-picker": "^14.0.8",
-		"expo-status-bar": "~3.0.9",
-		"react": "19.1.0",
-		"react-dom": "19.1.0",
-		"react-native": "0.81.5",
-		"react-native-ftp-client": "github:navico-mobile/react-native-ftp-client#1.1.2",
-		"react-native-web": "^0.21.0"
-	},
-	"private": true,
-	"devDependencies": {
-		"prettier": "^2.8.8"
-	}
+  "name": "ftp-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "start-proxy": "node ./ftp-proxy/server.js",
+    "format": "prettier --write \"**/*.{js,jsx,json,md,css,ts,tsx}\""
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "expo": "~54.0.31",
+    "expo-document-picker": "^14.0.8",
+    "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^0.563.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-ftp-client": "github:navico-mobile/react-native-ftp-client#1.1.2",
+    "react-native-svg": "^15.15.1",
+    "react-native-web": "^0.21.0"
+  },
+  "private": true,
+  "devDependencies": {
+    "prettier": "^2.8.8"
+  }
 }
