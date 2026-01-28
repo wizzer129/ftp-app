@@ -1,23 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import FirmwarePage from './views/FirmwarePage';
+import PumpsView from './views/PumpsView';
 import Nav from './components/Nav';
 import TopBar from './components/TopBar';
+import getStyles from './App.styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Appearance } from 'react-native';
+import { Provider, useSelector, useDispatch } from 'react-redux';
+import store from './store';
+import {
+	setDarkTheme,
+	toggleTheme as toggleThemeAction,
+	selectIsDarkTheme,
+} from './store/themeSlice';
 
-export default function App() {
+function AppContent() {
 	const [currentTab, setCurrentTab] = useState('firmware');
-	const [isDarkTheme, setIsDarkTheme] = useState(true);
+	const dispatch = useDispatch();
+	const isDarkTheme = useSelector(selectIsDarkTheme);
 
 	useEffect(() => {
 		loadThemePreference();
 	}, []);
 
+	const styles = getStyles(isDarkTheme);
+
 	const loadThemePreference = async () => {
 		try {
 			const savedTheme = await AsyncStorage.getItem('isDarkTheme');
 			if (savedTheme !== null) {
-				setIsDarkTheme(JSON.parse(savedTheme));
+				dispatch(setDarkTheme(JSON.parse(savedTheme)));
+			} else {
+				// no saved preference — use system color scheme
+				const sys = Appearance.getColorScheme();
+				dispatch(setDarkTheme(sys === 'dark'));
 			}
 		} catch (error) {
 			console.error('Failed to load theme preference:', error);
@@ -25,9 +42,9 @@ export default function App() {
 	};
 
 	const toggleTheme = async () => {
-		const newTheme = !isDarkTheme;
-		setIsDarkTheme(newTheme);
 		try {
+			dispatch(toggleThemeAction());
+			const newTheme = !isDarkTheme;
 			await AsyncStorage.setItem('isDarkTheme', JSON.stringify(newTheme));
 		} catch (error) {
 			console.error('Failed to save theme preference:', error);
@@ -37,18 +54,11 @@ export default function App() {
 	const renderContent = () => {
 		switch (currentTab) {
 			case 'firmware':
-				return <FirmwarePage isDarkTheme={isDarkTheme} />;
-			case 'settings':
-				return (
-					<View
-						style={[
-							styles.placeholder,
-							{ backgroundColor: isDarkTheme ? '#202124' : '#f5f5f5' },
-						]}
-					/>
-				);
+				return <FirmwarePage />;
+			case 'pumps':
+				return <PumpsView />;
 			default:
-				return <FirmwarePage isDarkTheme={isDarkTheme} />;
+				return <FirmwarePage />;
 		}
 	};
 
@@ -56,32 +66,26 @@ export default function App() {
 		switch (currentTab) {
 			case 'firmware':
 				return 'Firmware';
-			case 'settings':
-				return 'Settings';
+			case 'pumps':
+				return 'Pumps';
 			default:
 				return 'Firmware';
 		}
 	};
 
 	return (
-		<View style={[styles.container, { backgroundColor: isDarkTheme ? '#202124' : '#f5f5f5' }]}>
-			<TopBar title={getPageTitle()} isDarkTheme={isDarkTheme} onToggleTheme={toggleTheme} />
+		<View style={styles.container}>
+			<TopBar title={getPageTitle()} onToggleTheme={toggleTheme} />
 			<View style={styles.content}>{renderContent()}</View>
-			<Nav currentTab={currentTab} onTabChange={setCurrentTab} isDarkTheme={isDarkTheme} />
+			<Nav currentTab={currentTab} onTabChange={setCurrentTab} />
 		</View>
 	);
 }
 
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		backgroundColor: '#202124',
-	},
-	content: {
-		flex: 1,
-	},
-	placeholder: {
-		flex: 1,
-		backgroundColor: '#202124',
-	},
-});
+export default function App() {
+	return (
+		<Provider store={store}>
+			<AppContent />
+		</Provider>
+	);
+}

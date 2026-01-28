@@ -1,17 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import {
-	StyleSheet,
-	Text,
-	View,
-	TouchableOpacity,
-	Alert,
-	TextInput,
-	ActivityIndicator,
-} from 'react-native';
+import { Text, View, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
+import getStyles from './FirmwarePage.styles';
 import { useState, useRef } from 'react';
+import { useSelector } from 'react-redux';
+import { selectIsDarkTheme } from '../store/themeSlice';
 import * as DocumentPicker from 'expo-document-picker';
+import DeviceList from '../components/DeviceList';
 
-export default function FirmwarePage({ isDarkTheme }) {
+export default function FirmwarePage() {
+	const isDarkTheme = useSelector(selectIsDarkTheme);
+	const styles = getStyles(isDarkTheme);
 	const [selectedFile, setSelectedFile] = useState(null);
 	const [ip, setIp] = useState('192.168.10.140');
 	const [uploading, setUploading] = useState(false);
@@ -95,19 +93,11 @@ export default function FirmwarePage({ isDarkTheme }) {
 	};
 
 	return (
-		<View style={[styles.container, { backgroundColor: isDarkTheme ? '#202124' : '#f5f5f5' }]}>
-			<View style={[styles.card, { backgroundColor: isDarkTheme ? '#292a2d' : '#fff' }]}>
+		<View style={styles.container}>
+			<View style={styles.card}>
 				<View style={styles.form}>
 					<TextInput
-						style={[
-							styles.input,
-							{
-								backgroundColor: isDarkTheme ? '#3c4043' : '#f5f5f5',
-								color: isDarkTheme ? '#e8eaed' : '#333',
-								borderColor: isDarkTheme ? '#5f6368' : '#ddd',
-							},
-						]}
-						// placeholder="Upload Endpoint (e.g. http://192.168.1.x:4000/upload)"
+						style={styles.input}
 						value={ip}
 						onChangeText={setIp}
 						autoCapitalize="none"
@@ -116,104 +106,46 @@ export default function FirmwarePage({ isDarkTheme }) {
 
 				<View style={styles.buttonRow}>
 					<TouchableOpacity
-						style={[
-							styles.button,
-							{ backgroundColor: isDarkTheme ? '#8ab4f8' : '#007AFF' },
-						]}
+						style={[styles.button, styles.primaryButtonBg]}
 						onPress={selectFile}
 					>
-						<Text
-							style={[styles.buttonText, { color: isDarkTheme ? '#202124' : '#fff' }]}
-						>
-							{selectedFile ? 'Select Different File' : 'Select File'}
+						<Text style={styles.buttonText}>
+							{selectedFile ? 'Change FW' : 'Select FW'}
 						</Text>
 					</TouchableOpacity>
 
 					<TouchableOpacity
-						style={[
-							styles.button,
-							{
-								backgroundColor:
-									selectedFile == null || uploading
-										? isDarkTheme
-											? '#5f6368'
-											: '#cccccc'
-										: isDarkTheme
-										? '#81c995'
-										: '#28a745',
-							},
-							(selectedFile == null || uploading) && { opacity: 0.6 },
-						]}
+						style={
+							selectedFile == null || uploading
+								? [styles.button, styles.disabledButtonBg, { opacity: 0.6 }]
+								: [styles.button, styles.uploadButtonBg]
+						}
 						onPress={uploadViaEndpoint}
 						disabled={selectedFile == null || uploading}
 					>
 						{uploading ? (
 							<ActivityIndicator color={isDarkTheme ? '#81c995' : '#28a745'} />
 						) : (
-							<Text
-								style={[
-									styles.buttonText,
-									{ color: isDarkTheme ? '#202124' : '#fff' },
-								]}
-							>
-								Upload
-							</Text>
+							<Text style={styles.buttonText}>Upload</Text>
 						)}
 					</TouchableOpacity>
 				</View>
 
 				{uploading && (
 					<View style={styles.progressContainer}>
-						<View
-							style={[
-								styles.progressBackground,
-								{ backgroundColor: isDarkTheme ? '#3c4043' : '#eee' },
-							]}
-						>
-							<View
-								style={[
-									styles.progressBar,
-									{
-										width: `${uploadProgress}%`,
-										backgroundColor: isDarkTheme ? '#81c995' : '#28a745',
-									},
-								]}
-							/>
+						<View style={styles.progressBackground}>
+							<View style={[styles.progressBar, { width: `${uploadProgress}%` }]} />
 						</View>
-						<Text
-							style={[
-								styles.progressText,
-								{ color: isDarkTheme ? '#9aa0a6' : '#333' },
-							]}
-						>
-							{uploadProgress}%
-						</Text>
+						<Text style={styles.progressText}>{uploadProgress}%</Text>
 					</View>
 				)}
 
 				{selectedFile && (
-					<View
-						style={[
-							styles.uriContainer,
-							{ backgroundColor: isDarkTheme ? '#3c4043' : '#f8f8f8' },
-						]}
-					>
-						<Text
-							style={[styles.uriLabel, { color: isDarkTheme ? '#9aa0a6' : '#666' }]}
-						>
-							Selected File:
-						</Text>
-						<Text style={[styles.uriText, { color: isDarkTheme ? '#e8eaed' : '#333' }]}>
-							{selectedFile.name}
-						</Text>
-						<Text
-							style={[styles.uriLabel, { color: isDarkTheme ? '#9aa0a6' : '#666' }]}
-						>
-							File URI:
-						</Text>
-						<Text style={[styles.uriText, { color: isDarkTheme ? '#e8eaed' : '#333' }]}>
-							{selectedFile.uri}
-						</Text>
+					<View style={styles.uriContainer}>
+						<Text style={styles.uriLabel}>Selected File:</Text>
+						<Text style={styles.uriText}>{selectedFile.name}</Text>
+						<Text style={styles.uriLabel}>File URI:</Text>
+						<Text style={styles.uriText}>{selectedFile.uri}</Text>
 					</View>
 				)}
 			</View>
@@ -222,116 +154,3 @@ export default function FirmwarePage({ isDarkTheme }) {
 		</View>
 	);
 }
-
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		padding: 20,
-	},
-	card: {
-		borderRadius: 12,
-		padding: 20,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.3,
-		shadowRadius: 4,
-		elevation: 3,
-	},
-	fileInfo: {
-		alignItems: 'center',
-		marginBottom: 20,
-		padding: 15,
-		backgroundColor: '#3c4043',
-		borderRadius: 8,
-	},
-	fileLabel: {
-		fontSize: 16,
-		color: '#9aa0a6',
-		marginBottom: 5,
-	},
-	fileName: {
-		fontSize: 18,
-		fontWeight: '600',
-		color: '#e8eaed',
-		textAlign: 'center',
-	},
-	form: {
-		width: '100%',
-		marginBottom: 20,
-	},
-	input: {
-		width: '100%',
-		padding: 12,
-		borderWidth: 1,
-		borderColor: '#5f6368',
-		borderRadius: 8,
-		fontSize: 14,
-		backgroundColor: '#3c4043',
-		color: '#e8eaed',
-	},
-	buttonRow: {
-		flexDirection: 'row',
-		gap: 10,
-		marginBottom: 20,
-	},
-	button: {
-		flex: 1,
-		backgroundColor: '#8ab4f8',
-		paddingVertical: 12,
-		borderRadius: 8,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	uploadButton: {
-		backgroundColor: '#81c995',
-	},
-	buttonDisabled: {
-		backgroundColor: '#5f6368',
-		opacity: 0.6,
-	},
-	buttonText: {
-		color: '#202124',
-		fontSize: 16,
-		fontWeight: '600',
-	},
-	uriContainer: {
-		marginTop: 10,
-		padding: 15,
-		backgroundColor: '#3c4043',
-		borderRadius: 8,
-		maxWidth: '100%',
-	},
-	uriLabel: {
-		fontSize: 14,
-		color: '#9aa0a6',
-		marginBottom: 5,
-		fontWeight: '500',
-	},
-	uriText: {
-		fontSize: 12,
-		color: '#e8eaed',
-		fontFamily: 'monospace',
-		flexWrap: 'wrap',
-	},
-	progressContainer: {
-		width: '100%',
-		alignItems: 'center',
-		marginTop: 8,
-	},
-	progressBackground: {
-		width: '100%',
-		height: 12,
-		backgroundColor: '#3c4043',
-		borderRadius: 6,
-		overflow: 'hidden',
-	},
-	progressBar: {
-		height: 12,
-		backgroundColor: '#81c995',
-	},
-	progressText: {
-		marginTop: 6,
-		fontSize: 12,
-		color: '#9aa0a6',
-	},
-});
