@@ -10,6 +10,7 @@ import A5 from '../assets/pumps/A5.png';
 import M3 from '../assets/pumps/M3.png';
 import M4 from '../assets/pumps/M4.png';
 import M5 from '../assets/pumps/M5.png';
+import { startScanning, stopScanning, getDevices } from '../services/ScanDevices';
 
 export default function PumpsView() {
 	const isDarkTheme = useSelector(selectIsDarkTheme);
@@ -30,6 +31,10 @@ export default function PumpsView() {
 		{ name: 'Pump E', ip: '192.168.1.54', image: M4 },
 		{ name: 'Pump F', ip: '192.168.1.55', image: M5 },
 	];
+
+	startScanning((devices) => {
+		console.log('Found devices:', devices);
+	});
 
 	return (
 		<View style={styles.container}>

@@ -22,7 +22,8 @@
 		"react-native": "0.81.5",
 		"react-native-ftp-client": "github:navico-mobile/react-native-ftp-client#1.1.2",
 		"react-native-svg": "^15.15.1",
-		"react-native-web": "^0.21.0"
+		"react-native-web": "^0.21.0",
+		"react-native-zeroconf": "^0.14.0"
 	},
 	"optionalDependencies": {
 		"@reduxjs/toolkit": "^1.9.5",
