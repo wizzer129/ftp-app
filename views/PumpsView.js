@@ -10,7 +10,8 @@ import A5 from '../assets/pumps/A5.png';
 import M3 from '../assets/pumps/M3.png';
 import M4 from '../assets/pumps/M4.png';
 import M5 from '../assets/pumps/M5.png';
-import { startScanning, stopScanning, getDevices } from '../services/ScanDevices';
+// import { startScanning, stopScanning, getDevices } from '../services/ScanDevices';
+import { useWhoAmIScanner } from '../services/scanWhoAmI';
 
 export default function PumpsView() {
 	const isDarkTheme = useSelector(selectIsDarkTheme);
@@ -31,16 +32,29 @@ export default function PumpsView() {
 		{ name: 'Pump E', ip: '192.168.1.54', image: M4 },
 		{ name: 'Pump F', ip: '192.168.1.55', image: M5 },
 	];
+	const { scanning, results, start, stop } = useWhoAmIScanner();
 
-	startScanning((devices) => {
-		console.log('Found devices:', devices);
-	});
+	const discovered = results.map((r) => ({
+		name: (r.info && (r.info.name || r.info.id)) || `${r.host}:${r.port}`,
+		ip: r.host,
+		key: `${r.host}:${r.port}`,
+	}));
+
+	// startScanning((devices) => {
+	// 	console.log('Found devices:', devices);
+	// });
 
 	return (
 		<View style={styles.container}>
 			<View style={styles.card}>
-				<TouchableOpacity style={styles.scanPill} onPress={() => {}}>
-					<Text style={styles.scanText}>Scan</Text>
+				<TouchableOpacity
+					style={styles.scanPill}
+					onPress={() => {
+						if (scanning) stop();
+						else start();
+					}}
+				>
+					<Text style={styles.scanText}>{scanning ? 'Stop' : 'Scan'}</Text>
 				</TouchableOpacity>
 			</View>
 
@@ -54,6 +68,19 @@ export default function PumpsView() {
 				contentContainerStyle={{ paddingBottom: 24 }}
 				renderItem={({ item }) => <PumpCard pump={item} />}
 			/>
+
+			{discovered.length > 0 && (
+				<>
+					<Text style={{ ...styles.label, marginTop: 12 }}>Discovered Devices</Text>
+					<FlatList
+						data={discovered}
+						style={styles.pumpList}
+						keyExtractor={(item) => item.key}
+						contentContainerStyle={{ paddingBottom: 24 }}
+						renderItem={({ item }) => <PumpCard pump={item} />}
+					/>
+				</>
+			)}
 		</View>
 	);
 }

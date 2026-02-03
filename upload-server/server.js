@@ -65,6 +65,20 @@ function progressMiddleware(req, res, next) {
 	next();
 }
 
+app.get('/whoami', (req, res) => {
+	res.json({
+		schema: 'com.yourapp.device.whoami.v1',
+		id: DEVICE_ID,
+		name: DEVICE_NAME,
+		type: 'ftp-server',
+		platform: 'linux',
+		ip: req.socket.localAddress,
+		port: 8080,
+		services: [{ name: 'ftp', port: 21 }],
+		uptime: process.uptime(),
+	});
+});
+
 // POST /upload - accepts multipart form with field 'file' and saves into uploads/
 app.post('/upload', progressMiddleware, upload.single('file'), (req, res) => {
 	console.log('Received upload request');

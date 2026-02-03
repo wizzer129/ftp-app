@@ -18,6 +18,17 @@ import Zeroconf from 'react-native-zeroconf';
 // Service type to scan for - devices should advertise as '_device._tcp'
 const SERVICE_TYPE = '_device._tcp';
 
+// derive service name and protocol for Zeroconf.scan()
+const _parseServiceType = (svc) => {
+	// expected format: _name._proto (e.g. _device._tcp)
+	const normalized = svc.replace(/^_/, '');
+	const parts = normalized.split('._');
+	return {
+		name: parts[0] || 'device',
+		protocol: parts[1] || 'tcp',
+	};
+};
+
 let isScanning = false;
 let discoveredDevices = new Map();
 let scanCallback = null;
@@ -80,7 +91,9 @@ export const startScanning = async (callback) => {
 		// scan() is event-driven, not promise-based
 		// It will emit 'resolved' and 'removed' events
 		console.log(mdns);
-		mdns.scan('http', 'tcp', 'local.');
+		const { name, protocol } = _parseServiceType(SERVICE_TYPE);
+		// scan for devices advertising the configured service type
+		mdns.scan(name, protocol, 'local.');
 
 		console.log(`Started scanning for devices with service type: ${SERVICE_TYPE}`);
 	} catch (error) {
