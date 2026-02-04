@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import { selectIsDarkTheme } from '../store/themeSlice';
 import getStyles from './PumpsView.styles';
@@ -10,7 +10,6 @@ import A5 from '../assets/pumps/A5.png';
 import M3 from '../assets/pumps/M3.png';
 import M4 from '../assets/pumps/M4.png';
 import M5 from '../assets/pumps/M5.png';
-// import { startScanning, stopScanning, getDevices } from '../services/ScanDevices';
 import { useWhoAmIScanner } from '../services/scanWhoAmI';
 
 export default function PumpsView() {
@@ -40,10 +39,6 @@ export default function PumpsView() {
 		key: `${r.host}:${r.port}`,
 	}));
 
-	// startScanning((devices) => {
-	// 	console.log('Found devices:', devices);
-	// });
-
 	return (
 		<View style={styles.container}>
 			<View style={styles.card}>
@@ -56,6 +51,13 @@ export default function PumpsView() {
 				>
 					<Text style={styles.scanText}>{scanning ? 'Stop' : 'Scan'}</Text>
 				</TouchableOpacity>
+				{scanning && (
+					<ActivityIndicator
+						size="small"
+						color={isDarkTheme ? '#fff' : '#000'}
+						style={{ marginLeft: 8 }}
+					/>
+				)}
 			</View>
 
 			<Text style={styles.label}>Selected Pump</Text>
@@ -69,7 +71,7 @@ export default function PumpsView() {
 				renderItem={({ item }) => <PumpCard pump={item} />}
 			/>
 
-			{discovered.length > 0 && (
+			{discovered?.length > 0 && (
 				<>
 					<Text style={{ ...styles.label, marginTop: 12 }}>Discovered Devices</Text>
 					<FlatList

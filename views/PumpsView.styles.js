@@ -17,6 +17,7 @@ export default function getStyles(isDarkTheme) {
 			shadowRadius: 6,
 			elevation: 2,
 			marginBottom: 12,
+			flexDirection: 'row',
 		},
 		scanPill: {
 			alignSelf: 'flex-start',

@@ -68,8 +68,8 @@ function progressMiddleware(req, res, next) {
 app.get('/whoami', (req, res) => {
 	res.json({
 		schema: 'com.yourapp.device.whoami.v1',
-		id: DEVICE_ID,
-		name: DEVICE_NAME,
+		id: '1',
+		name: 'Alex Pump',
 		type: 'ftp-server',
 		platform: 'linux',
 		ip: req.socket.localAddress,
@@ -135,5 +135,5 @@ app.get('/progress', (req, res) => {
 // serve uploaded files statically
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => console.log(`Upload server listening on ${PORT}`));

@@ -12,7 +12,7 @@
  * - Works in Node.js too (uses `http` when `fetch` is missing).
  */
 
-const defaultPorts = [4000, 8080, 80, 3000, 5000];
+const defaultPorts = [8080];
 
 function ipToInt(ip) {
 	return ip.split('.').reduce((acc, octet) => (acc << 8) + Number(octet), 0) >>> 0;
@@ -27,37 +27,19 @@ function maskFromPrefix(prefix) {
 }
 
 async function detectLocalIps() {
-	// Try react-native-network-info if available
+	// 1) Try Expo managed `expo-network`
 	try {
-		// dynamic require to avoid bundler errors when not installed
 		// eslint-disable-next-line global-require
-		const { NetworkInfo: RNNetworkInfo } = require('react-native-network-info');
-		if (RNNetworkInfo) {
-			// API differs between versions; try common names
-			if (typeof RNNetworkInfo.getIPV4Address === 'function') {
-				const ip = await RNNetworkInfo.getIPV4Address();
-				if (ip) return [ip];
-			}
-			if (typeof RNNetworkInfo.getIPAddress === 'function') {
-				const ip = await RNNetworkInfo.getIPAddress();
-				if (ip) return [ip];
-			}
+		const expoNet = require('expo-network');
+		const Network = expoNet && (expoNet.Network || expoNet);
+		if (Network && typeof Network.getIpAddressAsync === 'function') {
+			const ip = await Network.getIpAddressAsync();
+			if (ip) return [ip];
 		}
 	} catch (e) {
-		// ignore - module not installed or not available
+		// ignore if not available
+		console.log('Error attempting to detect IPs:', e.message || e);
 	}
-
-	// Fallback: try global objects (web) or return empty
-	try {
-		if (
-			typeof window !== 'undefined' &&
-			window &&
-			window.location &&
-			window.location.hostname
-		) {
-			return [window.location.hostname];
-		}
-	} catch (e) {}
 
 	return [];
 }
@@ -80,63 +62,34 @@ function enumerateHostsFromRange(range, maxHostsCap = 254) {
 }
 
 function fetchWhoamiViaFetch(host, port, timeout) {
-	const url = `http://${host}:${port}/whoami`;
-	const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-	const signal = controller ? controller.signal : undefined;
-	const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
+	try {
+		const url = `http://${host}:${port}/whoami`;
+		const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+		const signal = controller ? controller.signal : undefined;
+		const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
 
-	return fetch(url, { method: 'GET', signal })
-		.then(async (res) => {
-			if (!res.ok) throw new Error('non-200');
-			const text = await res.text();
-			try {
-				const json = JSON.parse(text);
-				return { ok: true, json };
-			} catch (e) {
-				return { ok: false };
-			}
-		})
-		.catch(() => ({ ok: false }))
-		.finally(() => {
-			if (timer) clearTimeout(timer);
-		});
-}
-
-function fetchWhoamiViaHttpModule(host, port, timeout) {
-	// Node.js fallback
-	return new Promise((resolve) => {
-		let http;
-		try {
-			http = require('http');
-		} catch (e) {
-			return resolve({ ok: false });
-		}
-		const opts = { host, port, path: '/whoami', method: 'GET', timeout };
-		const req = http.request(opts, (res) => {
-			let raw = '';
-			res.setEncoding('utf8');
-			res.on('data', (c) => (raw += c));
-			res.on('end', () => {
+		return fetch(url, { method: 'GET', signal })
+			.then(async (res) => {
+				if (!res.ok) throw new Error('non-200');
+				const text = await res.text();
 				try {
-					const json = JSON.parse(raw);
-					resolve({ ok: true, json });
+					const json = JSON.parse(text);
+					return { ok: true, json };
 				} catch (e) {
-					resolve({ ok: false });
+					return { ok: false };
 				}
+			})
+			.catch(() => ({ ok: false }))
+			.finally(() => {
+				if (timer) clearTimeout(timer);
 			});
-		});
-		req.on('error', () => resolve({ ok: false }));
-		req.on('timeout', () => {
-			req.destroy();
-			resolve({ ok: false });
-		});
-		req.end();
-	});
+	} catch (error) {
+		console.log('fetchWhoamiViaFetch error:', error.message || error);
+	}
 }
 
 async function probeWhoami(host, port, timeout) {
-	if (typeof fetch !== 'undefined') return fetchWhoamiViaFetch(host, port, timeout);
-	return fetchWhoamiViaHttpModule(host, port, timeout);
+	return fetchWhoamiViaFetch(host, port, timeout);
 }
 
 /**
@@ -152,7 +105,7 @@ async function probeWhoami(host, port, timeout) {
  */
 async function scanWhoAmI(opts = {}) {
 	const ports = opts.ports || defaultPorts;
-	const timeout = typeof opts.timeout === 'number' ? opts.timeout : 1500;
+	const timeout = typeof opts.timeout === 'number' ? opts.timeout : 10_000;
 	const concurrency = opts.concurrency || 100;
 	const onResult = typeof opts.onResult === 'function' ? opts.onResult : null;
 	const shouldCancel = typeof opts.shouldCancel === 'function' ? opts.shouldCancel : () => false;
@@ -162,6 +115,7 @@ async function scanWhoAmI(opts = {}) {
 		for (const ip of opts.localIps) ranges.push(`${ip}/24`);
 	} else {
 		const detected = await detectLocalIps();
+		console.log('My IP:', detected);
 		for (const ip of detected) ranges.push(`${ip}/24`);
 	}
 
@@ -192,6 +146,7 @@ async function scanWhoAmI(opts = {}) {
 			const { host, port } = tasks[i];
 			try {
 				const res = await probeWhoami(host, port, timeout);
+				console.log(`Probed ${host}:${port} -> ${res.ok ? 'OK' : 'no response'}`);
 				if (res && res.ok && res.json) {
 					const info = res.json;
 					if (info && (info.id || info.name || info.schema)) {
@@ -235,6 +190,7 @@ function useWhoAmIScanner(baseOpts = {}) {
 					...override,
 					onResult: (r) =>
 						setResults((s) => {
+							console.log('Found device:', r);
 							// avoid duplicates by host:port
 							const key = `${r.host}:${r.port}`;
 							if (s.some((x) => `${x.host}:${x.port}` === key)) return s;
@@ -265,24 +221,3 @@ function useWhoAmIScanner(baseOpts = {}) {
 }
 
 module.exports = { scanWhoAmI, useWhoAmIScanner };
-
-// CLI runner for node usage (kept for compatibility)
-if (require.main === module) {
-	(async () => {
-		console.log(
-			'Scanning local /24 subnets for /whoami endpoints (Node/React-Native compatible)...'
-		);
-		try {
-			const found = await scanWhoAmI();
-			if (!found.length) console.log('No devices found.');
-			else {
-				console.log('Found devices:');
-				for (const f of found)
-					console.log(`${f.host}:${f.port} -> ${JSON.stringify(f.info)}`);
-			}
-		} catch (e) {
-			console.error('Scan failed:', e.message || e);
-			process.exitCode = 2;
-		}
-	})();
-}
